@@ -1,14 +1,83 @@
-// Preloader Logic (Fake delay)
 const preloader = document.getElementById("preloader");
-if (preloader) {
-    // Fake a 2.5 second loading time
-    setTimeout(() => {
+const preloaderPercentage = document.getElementById("preloader-percentage");
+const canvas = document.getElementById("hero-lightpass");
+const context = canvas ? canvas.getContext("2d") : null;
+if (canvas) {
+    canvas.width = 1920;
+    canvas.height = 1080;
+}
+
+const frameCount = 240;
+const currentFrame = index => (
+    `./src/assets/sec1vdo-Frame/${(index + 1).toString().padStart(5, '0')}.webp`
+);
+
+const videoImages = [];
+const videoState = {
+    frame: 0
+};
+
+let loadedCount = 0;
+
+function hidePreloader() {
+    if (preloader) {
         preloader.style.opacity = "0";
         preloader.style.visibility = "hidden";
         setTimeout(() => {
             preloader.style.display = "none";
-        }, 500); // Matches CSS transition duration
-    }, 2500);
+        }, 500);
+    }
+}
+
+function renderVideoFrame() {
+    if (context && videoImages[videoState.frame]) {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(videoImages[videoState.frame], 0, 0, canvas.width, canvas.height);
+    }
+}
+
+// Load frames and update percentage
+if (canvas) {
+    for (let i = 0; i < frameCount; i++) {
+        const img = new Image();
+
+        const handleLoad = () => {
+            loadedCount++;
+            if (preloaderPercentage) {
+                const percent = Math.floor((loadedCount / frameCount) * 100);
+                preloaderPercentage.innerText = `${percent}%`;
+            }
+            if (loadedCount === 1) {
+                // Render the first frame as soon as it's ready
+                renderVideoFrame();
+            }
+            if (loadedCount === frameCount) {
+                // All frames loaded (or failed), hide preloader
+                hidePreloader();
+            }
+        };
+
+        img.onload = handleLoad;
+        img.onerror = handleLoad;
+
+        img.src = currentFrame(i);
+        videoImages.push(img);
+    }
+
+    gsap.to(videoState, {
+        frame: frameCount - 1,
+        snap: "frame",
+        ease: "none",
+        scrollTrigger: {
+            trigger: ".section1",
+            start: "top top",
+            end: "bottom top",
+            scrub: 0.5,
+            onUpdate: renderVideoFrame
+        }
+    });
+} else {
+    hidePreloader();
 }
 
 console.clear();
@@ -18,19 +87,18 @@ const images = gsap.utils.toArray(".image");
 const slideImages = gsap.utils.toArray(".slide__img");
 const outerWrappers = gsap.utils.toArray(".slide__outer");
 const innerWrappers = gsap.utils.toArray(".slide__inner");
-// const count = document.querySelector(".count");
 const wrap = gsap.utils.wrap(0, sections.length);
 let animating;
 let currentIndex = 0;
-let section2Active = true;
+let section2Active = false;
 let normalContentActive = false;
 let section2Step = 0;
 
 function updateSection2Popups() {
     const popups = document.querySelectorAll('.bowl-popup');
-    if(popups.length < 5) return;
+    if (popups.length < 5) return;
     popups.forEach(p => p.classList.remove('active'));
-    
+
     if (section2Step === 1) {
         popups[2].classList.add('active'); // Middle
     }
@@ -70,7 +138,6 @@ function gotoSection(index, direction) {
     gsap.set([sections[index], images[currentIndex]], { zIndex: 2, autoAlpha: 1 });
 
     tl
-        // .set(count, { text: index + 1 }, 0.32)
         .fromTo(
             outerWrappers[index],
             {
@@ -162,11 +229,13 @@ const observer = Observer.create({
         }
         if (currentIndex === sections.length - 1 && !normalContentActive) {
             animating = true;
-            gsap.to(".normal-content", { yPercent: -100, duration: 0.5, ease: "expo.inOut", onComplete: () => { 
-                animating = false; 
-                normalContentActive = true; 
-                observer.disable(); // Allow native scroll
-            } });
+            gsap.to(".normal-content", {
+                yPercent: -100, duration: 0.5, ease: "expo.inOut", onComplete: () => {
+                    animating = false;
+                    normalContentActive = true;
+                    observer.disable(); // Allow native scroll
+                }
+            });
             return;
         }
         if (normalContentActive) return;
@@ -191,6 +260,13 @@ const observer = Observer.create({
                 updateSection2Popups();
                 animating = true;
                 setTimeout(() => animating = false, 400);
+            } else {
+                // Transition back to section 1
+                section2Active = false;
+                observer.disable();
+                document.body.style.overflowX = 'hidden';
+                document.body.style.overflowY = 'auto'; // allow native scroll
+                window.scrollBy(0, -10); // nudge up slightly to re-trigger normal scrolling
             }
             return;
         }
@@ -199,10 +275,24 @@ const observer = Observer.create({
     tolerance: 0
 });
 
+// Initially disable observer for section 1
+observer.disable();
+
+ScrollTrigger.create({
+    trigger: ".section2",
+    start: "top top",
+    onEnter: () => {
+        document.body.style.overflow = 'hidden';
+        observer.enable();
+        section2Active = true;
+        section2Step = 0;
+        updateSection2Popups();
+    }
+});
+
 document.addEventListener("keydown", logKey);
 
 function logKey(e) {
-    console.log(e.code);
     if ((e.code === "ArrowUp" || e.code === "ArrowLeft") && !animating) {
         if (normalContentActive) {
             animating = true;
@@ -220,6 +310,12 @@ function logKey(e) {
                 updateSection2Popups();
                 animating = true;
                 setTimeout(() => animating = false, 400);
+            } else {
+                section2Active = false;
+                observer.disable();
+                document.body.style.overflowX = 'hidden';
+                document.body.style.overflowY = 'auto'; // allow native scroll
+                window.scrollBy(0, -10); // nudge up slightly
             }
             return;
         }
@@ -247,11 +343,13 @@ function logKey(e) {
         }
         if (currentIndex === sections.length - 1 && !normalContentActive) {
             animating = true;
-            gsap.to(".normal-content", { yPercent: -100, duration: 0.5, ease: "expo.inOut", onComplete: () => { 
-                animating = false; 
-                normalContentActive = true; 
-                observer.disable();
-            } });
+            gsap.to(".normal-content", {
+                yPercent: -100, duration: 0.5, ease: "expo.inOut", onComplete: () => {
+                    animating = false;
+                    normalContentActive = true;
+                    observer.disable();
+                }
+            });
             return;
         }
         if (normalContentActive) return;
@@ -261,26 +359,28 @@ function logKey(e) {
 
 // Re-enable observer when scrolling back up to the top of normal-content
 const normalContentEl = document.querySelector(".normal-content");
-normalContentEl.addEventListener("wheel", (e) => {
-    if (normalContentEl.scrollTop <= 0 && e.deltaY < 0 && !animating) {
-        // user scrolled up at the very top of normal content
-        e.preventDefault();
-        animating = true;
-        gsap.to(".normal-content", { yPercent: 0, duration: 0.5, ease: "expo.inOut", onComplete: () => { 
-            animating = false; 
-            normalContentActive = false; 
-            observer.enable();
-        }});
-    }
-});
+if (normalContentEl) {
+    normalContentEl.addEventListener("wheel", (e) => {
+        if (normalContentEl.scrollTop <= 0 && e.deltaY < 0 && !animating) {
+            // user scrolled up at the very top of normal content
+            e.preventDefault();
+            animating = true;
+            gsap.to(".normal-content", {
+                yPercent: 0, duration: 0.5, ease: "expo.inOut", onComplete: () => {
+                    animating = false;
+                    normalContentActive = false;
+                    observer.enable();
+                }
+            });
+        }
+    });
+}
 
 // Section 4 Card Selection Logic
 const productCards = document.querySelectorAll('.product-card');
 productCards.forEach(card => {
     card.addEventListener('click', () => {
-        // Remove active class from all cards
         productCards.forEach(c => c.classList.remove('active-card'));
-        // Add active class to the clicked card
         card.classList.add('active-card');
     });
 });
@@ -298,91 +398,259 @@ const itemsPerPage = 8;
 let filteredCards = [];
 
 function renderProducts() {
-    // Filter cards
     filteredCards = Array.from(productCardsItems).filter(card => {
         return currentFilter === 'all' || card.getAttribute('data-category') === currentFilter;
     });
 
     const totalPages = Math.ceil(filteredCards.length / itemsPerPage);
-    
-    // Ensure currentPage is valid
     if (currentPage >= totalPages && totalPages > 0) {
         currentPage = totalPages - 1;
     }
 
-    // Hide all cards first
     productCardsItems.forEach(card => card.style.display = 'none');
-
-    // Show cards for current page
     const startIdx = currentPage * itemsPerPage;
     const endIdx = startIdx + itemsPerPage;
     for (let i = startIdx; i < Math.min(endIdx, filteredCards.length); i++) {
         filteredCards[i].style.display = 'block';
     }
 
-    // Update buttons state
-    prevBtn.disabled = currentPage === 0;
-    nextBtn.disabled = currentPage >= totalPages - 1 || totalPages === 0;
+    if (prevBtn) prevBtn.disabled = currentPage === 0;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages - 1 || totalPages === 0;
 
-    // Render dots
-    pageDotsContainer.innerHTML = '';
-    if (totalPages > 1) {
-        for (let i = 0; i < totalPages; i++) {
-            const dot = document.createElement('div');
-            dot.classList.add('dot');
-            if (i === currentPage) dot.classList.add('active');
-            dot.addEventListener('click', () => {
-                currentPage = i;
-                renderProducts();
-            });
-            pageDotsContainer.appendChild(dot);
+    if (pageDotsContainer) {
+        pageDotsContainer.innerHTML = '';
+        if (totalPages > 1) {
+            for (let i = 0; i < totalPages; i++) {
+                const dot = document.createElement('div');
+                dot.classList.add('dot');
+                if (i === currentPage) dot.classList.add('active');
+                dot.addEventListener('click', () => {
+                    currentPage = i;
+                    renderProducts();
+                });
+                pageDotsContainer.appendChild(dot);
+            }
+            document.querySelector('.section4-pagination').style.display = 'flex';
+        } else {
+            document.querySelector('.section4-pagination').style.display = 'none';
         }
-        document.querySelector('.section4-pagination').style.display = 'flex';
-    } else {
-        document.querySelector('.section4-pagination').style.display = 'none';
     }
 }
 
-// Initial render
-renderProducts();
+if (productCardsItems.length > 0) renderProducts();
 
 tabs.forEach(tab => {
     tab.addEventListener('click', () => {
         tabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-        
+
         currentFilter = tab.getAttribute('data-filter');
         currentPage = 0;
         renderProducts();
     });
 });
 
-prevBtn.addEventListener('click', () => {
-    if (currentPage > 0) {
-        currentPage--;
-        renderProducts();
-    }
-});
-
-nextBtn.addEventListener('click', () => {
-    const totalPages = Math.ceil(filteredCards.length / itemsPerPage);
-    if (currentPage < totalPages - 1) {
-        currentPage++;
-        renderProducts();
-    }
-});
+if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+        if (currentPage > 0) {
+            currentPage--;
+            renderProducts();
+        }
+    });
+}
+if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredCards.length / itemsPerPage);
+        if (currentPage < totalPages - 1) {
+            currentPage++;
+            renderProducts();
+        }
+    });
+}
 
 // Section 5 List Item Animation
 gsap.from(".choose-item", {
     scrollTrigger: {
         trigger: ".section5",
         scroller: ".normal-content",
-        start: "top 75%", // Trigger when section 5 is 75% down the viewport
-        toggleActions: "play none none reverse" // Play on scroll down, reverse on scroll up
+        start: "top 75%",
+        toggleActions: "play none none reverse"
     },
     x: -100,
     opacity: 0,
     duration: 0.8,
-    stagger: 0.2, // Slide them in one by one
+    stagger: 0.2,
     ease: "power2.out"
+});
+
+// Golden Glitters Effect
+function createGlitters() {
+    const slides = document.querySelectorAll('.slide__content');
+    if (slides.length === 0) return;
+
+    slides.forEach(slide => {
+        if (slide.querySelector('.glitter-container')) return;
+
+        const container = document.createElement('div');
+        container.classList.add('glitter-container');
+
+        const glitterCount = 30;
+        for (let i = 0; i < glitterCount; i++) {
+            const glitter = document.createElement('div');
+            glitter.classList.add('glitter');
+
+            const size = Math.random() * 5 + 2;
+            const left = Math.random() * 100;
+            const duration = Math.random() * 4 + 3;
+            const delay = Math.random() * 5;
+
+            glitter.style.width = `${size}px`;
+            glitter.style.height = `${size}px`;
+            glitter.style.left = `${left}vw`;
+            glitter.style.animationDuration = `${duration}s`;
+            glitter.style.animationDelay = `${delay}s`;
+
+            container.appendChild(glitter);
+        }
+
+        slide.insertBefore(container, slide.firstChild);
+    });
+}
+document.addEventListener("DOMContentLoaded", createGlitters);
+createGlitters();
+
+// Navigation Bar Links Logic
+document.querySelectorAll('.nav-links a').forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = link.getAttribute('href').substring(1);
+        const sec2Top = document.querySelector('.section2').offsetTop;
+
+        // Update URL hash
+        if (history.pushState) {
+            history.pushState(null, null, '#' + targetId);
+        } else {
+            location.hash = '#' + targetId;
+        }
+
+        if (targetId === 'home') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (normalContentActive) {
+                animating = true;
+                gsap.to(".normal-content", {
+                    yPercent: 0, duration: 0.5, onComplete: () => {
+                        animating = false;
+                        normalContentActive = false;
+                    }
+                });
+            }
+            if (section2Active) {
+                animating = true;
+                gsap.to(".section2", {
+                    yPercent: 0, duration: 0.5, onComplete: () => {
+                        animating = false;
+                        section2Active = false;
+                        observer.disable();
+                        document.body.style.overflowY = 'auto';
+                    }
+                });
+            } else {
+                gsap.to(".section2", { yPercent: 0, duration: 0.5 });
+                observer.disable();
+                document.body.style.overflowY = 'auto';
+            }
+        }
+        else if (targetId === 'our-collections') {
+            const activateSection2 = () => {
+                window.scrollTo({ top: sec2Top });
+                animating = true;
+                gsap.to(".section2", {
+                    yPercent: 0, duration: 0.5, onComplete: () => {
+                        animating = false;
+                        section2Active = true;
+                        section2Step = 0;
+                        updateSection2Popups();
+                        observer.enable();
+                        document.body.style.overflowY = 'hidden';
+                    }
+                });
+            };
+
+            if (normalContentActive) {
+                animating = true;
+                gsap.to(".normal-content", {
+                    yPercent: 0, duration: 0.5, onComplete: () => {
+                        animating = false;
+                        normalContentActive = false;
+                        activateSection2();
+                    }
+                });
+            } else {
+                activateSection2();
+            }
+        }
+        else if (targetId === 'new-arrival') {
+            const activateSection3 = () => {
+                window.scrollTo({ top: sec2Top });
+                gsap.set(".section2", { yPercent: -100 });
+                gotoSection(0, 1);
+                observer.enable();
+                document.body.style.overflowY = 'hidden';
+            };
+
+            if (normalContentActive) {
+                animating = true;
+                gsap.to(".normal-content", {
+                    yPercent: 0, duration: 0.5, onComplete: () => {
+                        animating = false;
+                        normalContentActive = false;
+                        activateSection3();
+                    }
+                });
+            } else if (section2Active) {
+                animating = true;
+                gsap.to(".section2", {
+                    yPercent: -100, duration: 0.5, onComplete: () => {
+                        animating = false;
+                        section2Active = false;
+                        activateSection3();
+                    }
+                });
+            } else {
+                activateSection3();
+            }
+        }
+        else if (targetId === 'products' || targetId === 'contact-us') {
+            const showNormalContent = (callback) => {
+                if (!normalContentActive) {
+                    window.scrollTo({ top: sec2Top });
+                    gsap.set(".section2", { yPercent: -100 });
+                    animating = true;
+                    gsap.to(".normal-content", {
+                        yPercent: -100, duration: 0.5, onComplete: () => {
+                            animating = false;
+                            normalContentActive = true;
+                            observer.disable();
+                            document.body.style.overflowY = 'hidden';
+                            if (callback) callback();
+                        }
+                    });
+                } else {
+                    if (callback) callback();
+                }
+            };
+
+            showNormalContent(() => {
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    const normalContentEl = document.querySelector('.normal-content');
+                    const offset = targetElement.offsetTop;
+                    normalContentEl.scrollTo({
+                        top: offset - 50, // Navbar height offset
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        }
+    });
 });
