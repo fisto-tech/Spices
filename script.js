@@ -1,3 +1,16 @@
+// Preloader Logic (Fake delay)
+const preloader = document.getElementById("preloader");
+if (preloader) {
+    // Fake a 2.5 second loading time
+    setTimeout(() => {
+        preloader.style.opacity = "0";
+        preloader.style.visibility = "hidden";
+        setTimeout(() => {
+            preloader.style.display = "none";
+        }, 500); // Matches CSS transition duration
+    }, 2500);
+}
+
 console.clear();
 
 const sections = gsap.utils.toArray(".slide");
