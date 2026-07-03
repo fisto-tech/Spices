@@ -42,7 +42,7 @@ class CitiesSlider extends React.Component {
     const { activeSlide, prevSlide, sliderReady } = this.state;
     return /*#__PURE__*/(
       React.createElement("div", { className: classNames('slider', { 's--ready': sliderReady }) }, /*#__PURE__*/
-      React.createElement("p", { className: "slider__top-heading" }, "Travelers"), /*#__PURE__*/
+      React.createElement("p", { className: "slider__top-heading" }, "Aavya Spices"), /*#__PURE__*/
       React.createElement("div", { className: "slider__slides" },
       this.props.slides.map((slide, index) => /*#__PURE__*/
       React.createElement("div", {
@@ -75,29 +75,30 @@ class CitiesSlider extends React.Component {
 
 const slides = [
 {
-  city: 'Paris',
-  country: 'France',
-  img: 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/142996/paris.jpg' },
+  city: 'Raw Ingredients',
+  country: 'Process 1',
+  img: '/src/assets/slider.png' },
 
 {
-  city: 'Singapore',
-  img: 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/142996/singapore.jpg' },
+  city: 'Blending',
+  country: 'Process 2',
+  img: '/src/assets/slider1.png' },
 
 {
-  city: 'Prague',
-  country: 'Czech Republic',
-  img: 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/142996/prague.jpg' },
+  city: 'Packing',
+  country: 'Process 3',
+  img: '/src/assets/slider2.png' },
 
 {
-  city: 'Amsterdam',
-  country: 'Netherlands',
-  img: 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/142996/amsterdam.jpg' },
+  city: 'Checking',
+  country: 'Process 4',
+  img: '/src/assets/slider3.png' },
 
 {
-  city: 'Moscow',
-  country: 'Russia',
-  img: 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/142996/moscow.jpg' }];
+  city: 'Final Product',
+  country: 'Process 5',
+  img: '/src/assets/slider4.png' }];
 
 
 
-ReactDOM.render( /*#__PURE__*/React.createElement(CitiesSlider, { slides: slides }), document.querySelector('#app'));
+ReactDOM.render( /*#__PURE__*/React.createElement(CitiesSlider, { slides: slides }), document.querySelector('#our-process'));

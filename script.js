@@ -68,13 +68,9 @@ if (canvas) {
         frame: frameCount - 1,
         snap: "frame",
         ease: "none",
-        scrollTrigger: {
-            trigger: ".section1",
-            start: "top top",
-            end: "bottom top",
-            scrub: 0.5,
-            onUpdate: renderVideoFrame
-        }
+        duration: 8,
+        repeat: -1,
+        onUpdate: renderVideoFrame
     });
 } else {
     hidePreloader();
@@ -89,6 +85,7 @@ const outerWrappers = gsap.utils.toArray(".slide__outer");
 const innerWrappers = gsap.utils.toArray(".slide__inner");
 const wrap = gsap.utils.wrap(0, sections.length);
 let animating;
+let isNavigating = false;
 let currentIndex = 0;
 let section2Active = false;
 let normalContentActive = false;
@@ -264,8 +261,9 @@ const observer = Observer.create({
                 // Transition back to section 1
                 section2Active = false;
                 observer.disable();
-                document.body.style.overflowX = 'hidden';
-                document.body.style.overflowY = 'auto'; // allow native scroll
+                document.body.style.overflowX = '';
+                document.body.style.overflowY = '';
+                document.body.style.overflow = ''; // allow native scroll
                 window.scrollBy(0, -10); // nudge up slightly to re-trigger normal scrolling
             }
             return;
@@ -282,11 +280,16 @@ ScrollTrigger.create({
     trigger: ".section2",
     start: "top top",
     onEnter: () => {
+        if (isNavigating) return;
+        gsap.set(".section1", { autoAlpha: 0 });
         document.body.style.overflow = 'hidden';
         observer.enable();
         section2Active = true;
         section2Step = 0;
         updateSection2Popups();
+    },
+    onLeaveBack: () => {
+        gsap.set(".section1", { autoAlpha: 1 });
     }
 });
 
@@ -520,11 +523,16 @@ document.addEventListener("DOMContentLoaded", createGlitters);
 createGlitters();
 
 // Navigation Bar Links Logic
-document.querySelectorAll('.nav-links a').forEach(link => {
+document.querySelectorAll('.nav-links a, .footer-links-container a').forEach(link => {
     link.addEventListener('click', (e) => {
+        const href = link.getAttribute('href');
+        if (!href || !href.startsWith('#')) return;
         e.preventDefault();
-        const targetId = link.getAttribute('href').substring(1);
+        const targetId = href.substring(1);
         const sec2Top = document.querySelector('.section2').offsetTop;
+
+        isNavigating = true;
+        setTimeout(() => { isNavigating = false; }, 1000);
 
         // Update URL hash
         if (history.pushState) {
@@ -534,7 +542,23 @@ document.querySelectorAll('.nav-links a').forEach(link => {
         }
 
         if (targetId === 'home') {
+            isNavigating = true;
+            document.body.style.overflow = '';
+            document.body.style.overflowY = '';
+            document.documentElement.style.overflow = '';
+            document.body.offsetHeight; // Force reflow
+            observer.disable();
+            section2Active = false;
+
+            // Hide section 3 slides just in case we are coming from new-arrival
+            gsap.set([sections, images], { zIndex: 0, autoAlpha: 0 });
+            if (sections.length > 0) {
+                gsap.set([sections[0], images[0]], { zIndex: 2, autoAlpha: 1 });
+            }
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            gsap.set(".section1", { autoAlpha: 1 });
             if (normalContentActive) {
                 animating = true;
                 gsap.to(".normal-content", {
@@ -544,34 +568,25 @@ document.querySelectorAll('.nav-links a').forEach(link => {
                     }
                 });
             }
-            if (section2Active) {
-                animating = true;
-                gsap.to(".section2", {
-                    yPercent: 0, duration: 0.5, onComplete: () => {
-                        animating = false;
-                        section2Active = false;
-                        observer.disable();
-                        document.body.style.overflowY = 'auto';
-                    }
-                });
-            } else {
-                gsap.to(".section2", { yPercent: 0, duration: 0.5 });
-                observer.disable();
-                document.body.style.overflowY = 'auto';
-            }
+            gsap.to(".section2", { yPercent: 0, duration: 0.5 });
         }
         else if (targetId === 'our-collections') {
             const activateSection2 = () => {
+                document.body.style.overflow = '';
+                document.body.style.overflowY = '';
+                document.documentElement.style.overflow = '';
+                document.body.offsetHeight; // Force reflow
                 window.scrollTo({ top: sec2Top });
+                gsap.set(".section1", { autoAlpha: 0 });
                 animating = true;
                 gsap.to(".section2", {
                     yPercent: 0, duration: 0.5, onComplete: () => {
                         animating = false;
                         section2Active = true;
-                        section2Step = 0;
+                        section2Step = 3;
                         updateSection2Popups();
                         observer.enable();
-                        document.body.style.overflowY = 'hidden';
+                        document.body.style.overflow = 'hidden';
                     }
                 });
             };
@@ -591,11 +606,27 @@ document.querySelectorAll('.nav-links a').forEach(link => {
         }
         else if (targetId === 'new-arrival') {
             const activateSection3 = () => {
+                document.body.style.overflow = '';
+                document.body.style.overflowY = '';
+                document.documentElement.style.overflow = '';
+                document.body.offsetHeight; // Force reflow
                 window.scrollTo({ top: sec2Top });
+                section2Active = false;
+                gsap.set(".section1", { autoAlpha: 0 });
                 gsap.set(".section2", { yPercent: -100 });
-                gotoSection(0, 1);
+                if (currentIndex !== 0) {
+                    gotoSection(0, 1);
+                } else {
+                    gsap.set([sections, images], { zIndex: 0, autoAlpha: 0 });
+                    gsap.set([sections[0], images[0]], { zIndex: 2, autoAlpha: 1 });
+                    gsap.set(outerWrappers[0], { xPercent: 0 });
+                    gsap.set(innerWrappers[0], { xPercent: 0 });
+                    if (sections[0].querySelector(".slide__heading")) {
+                        gsap.set(sections[0].querySelector(".slide__heading"), { autoAlpha: 1, xPercent: 0, "--width": 200 });
+                    }
+                }
                 observer.enable();
-                document.body.style.overflowY = 'hidden';
+                document.body.style.overflow = 'hidden';
             };
 
             if (normalContentActive) {
@@ -620,10 +651,16 @@ document.querySelectorAll('.nav-links a').forEach(link => {
                 activateSection3();
             }
         }
-        else if (targetId === 'products' || targetId === 'contact-us') {
+        else if (targetId === 'products' || targetId === 'contact-us' || targetId === 'our-process') {
             const showNormalContent = (callback) => {
                 if (!normalContentActive) {
+                    document.body.style.overflow = '';
+                    document.body.style.overflowY = '';
+                    document.documentElement.style.overflow = '';
+                    document.body.offsetHeight; // Force reflow
                     window.scrollTo({ top: sec2Top });
+                    gsap.set(".section1", { autoAlpha: 0 });
+                    section2Active = false;
                     gsap.set(".section2", { yPercent: -100 });
                     animating = true;
                     gsap.to(".normal-content", {
@@ -631,7 +668,7 @@ document.querySelectorAll('.nav-links a').forEach(link => {
                             animating = false;
                             normalContentActive = true;
                             observer.disable();
-                            document.body.style.overflowY = 'hidden';
+                            document.body.style.overflow = 'hidden';
                             if (callback) callback();
                         }
                     });
@@ -654,3 +691,21 @@ document.querySelectorAll('.nav-links a').forEach(link => {
         }
     });
 });
+
+// Mobile menu toggle logic
+const mobileMenu = document.getElementById('mobile-menu');
+const navLinksList = document.querySelector('.nav-links');
+
+if (mobileMenu && navLinksList) {
+    mobileMenu.addEventListener('click', () => {
+        mobileMenu.classList.toggle('is-active');
+        navLinksList.classList.toggle('mobile-active');
+    });
+
+    document.querySelectorAll('.nav-links a').forEach(link => {
+        link.addEventListener('click', () => {
+            mobileMenu.classList.remove('is-active');
+            navLinksList.classList.remove('mobile-active');
+        });
+    });
+}
