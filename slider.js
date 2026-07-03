@@ -77,27 +77,27 @@ const slides = [
 {
   city: 'Raw Ingredients',
   country: 'Process 1',
-  img: '/src/assets/slider.png' },
+  img: '/src/assets/slider.webp' },
 
 {
   city: 'Blending',
   country: 'Process 2',
-  img: '/src/assets/slider1.png' },
+  img: '/src/assets/slider1.webp' },
 
 {
   city: 'Packing',
   country: 'Process 3',
-  img: '/src/assets/slider2.png' },
+  img: '/src/assets/slider2.webp' },
 
 {
   city: 'Checking',
   country: 'Process 4',
-  img: '/src/assets/slider3.png' },
+  img: '/src/assets/slider3.webp' },
 
 {
   city: 'Final Product',
   country: 'Process 5',
-  img: '/src/assets/slider4.png' }];
+  img: '/src/assets/slider4.webp' }];
 
 
 
